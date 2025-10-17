@@ -6,9 +6,13 @@ import uuid
 
 # check if it's linux so it works on Streamlit Cloud
 if os.name == 'posix':
-    __import__('pysqlite3')
-    import sys
-    sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+    try:
+        __import__('pysqlite3')
+        import sys
+        sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+    except ImportError:
+        # pysqlite3 not available, use default sqlite3
+        pass
 
 
 
