@@ -1,18 +1,23 @@
+# Fix SQLite version BEFORE any other imports
+import sys
+try:
+    # Always try to use pysqlite3 for maximum compatibility
+    __import__('pysqlite3')
+    sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+    print("✅ Using pysqlite3 for ChromaDB compatibility")
+except ImportError:
+    # Check if default sqlite3 is compatible
+    import sqlite3
+    if sqlite3.sqlite_version < '3.35.0':
+        print(f"❌ SQLite version {sqlite3.sqlite_version} < 3.35.0 required by ChromaDB")
+        raise RuntimeError(f"Please install pysqlite3: pip install pysqlite3")
+    else:
+        print(f"✅ SQLite version {sqlite3.sqlite_version} is compatible with ChromaDB")
+
 import streamlit as st
 import os
 import dotenv
 import uuid
-
-
-# check if it's linux so it works on Streamlit Cloud
-if os.name == 'posix':
-    try:
-        __import__('pysqlite3')
-        import sys
-        sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
-    except ImportError:
-        # pysqlite3 not available, use default sqlite3
-        pass
 
 
 
