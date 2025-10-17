@@ -135,7 +135,7 @@ def initialize_vector_db(docs):
             embedding = AzureOpenAIEmbeddings(
                 api_key=os.getenv("AZ_OPENAI_API_KEY"),
                 azure_endpoint=os.getenv("AZ_OPENAI_ENDPOINT"),
-                model="text-embedding-3-large",
+                azure_deployment="text-embedding-3-large",  # Use azure_deployment instead of model
                 openai_api_version="2024-02-15-preview",
             )
 
