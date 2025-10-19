@@ -1,21 +1,17 @@
-# Fix SQLite version BEFORE any other imports
-import sqlite_fix
-
 import streamlit as st
 import os
 import dotenv
 import uuid
 
-
-
 from langchain_openai import ChatOpenAI, AzureChatOpenAI
 from langchain.schema import HumanMessage, AIMessage
 
 from rag_methods import (
-    load_doc_to_db, 
+    load_doc_to_db,
     load_url_to_db,
     stream_llm_response,
     stream_llm_rag_response,
+    cleanup_current_session,
 )
 
 
@@ -34,20 +30,29 @@ else:
 
 
 st.set_page_config(
-    page_title="RAG LLM aap?",
-    page_icon="🍀",
+    page_title="Document RAG Application",
+    page_icon="📚",
     layout="centered",
     initial_sidebar_state="expanded"
 )
 
 
 # --- Header ---
-st.html("""<h2 style="text-align: center;"><i> Document RAG Application </i></h2>""")
+st.html("""
+<h1 style="text-align: center; color: #1f77b4;">
+    📚 Document RAG Application
+</h1>
+<p style="text-align: center; color: #666; font-size: 14px;">
+    Upload documents and ask questions powered by AI
+</p>
+""")
 
 
 # --- Initial Setup ---
+# Initialize session ID
 if "session_id" not in st.session_state:
     st.session_state.session_id = str(uuid.uuid4())
+    print(f"New session started: {st.session_state.session_id}")
 
 if "rag_sources" not in st.session_state:
     st.session_state.rag_sources = []
@@ -100,40 +105,71 @@ else:
             key="model",
         )
 
-        cols0 = st.columns(2)
-        with cols0[0]:
-            is_vector_db_loaded = ("vector_db" in st.session_state and st.session_state.vector_db is not None)
-            st.toggle(
-                "Use RAG", 
-                value=is_vector_db_loaded, 
-                key="use_rag", 
-                disabled=not is_vector_db_loaded,
-            )
-        
-        with cols0[1]:
-            st.button("Clear Chat", on_click=lambda: st.session_state.messages.clear(), type="primary")
+        is_vector_db_loaded = ("vector_db" in st.session_state and st.session_state.vector_db is not None)
 
-        st.header("RAG Sources:")
-            
+        # RAG Toggle
+        st.toggle(
+            "📚 Use RAG",
+            value=is_vector_db_loaded,
+            key="use_rag",
+            disabled=not is_vector_db_loaded,
+            help="Enable to answer questions using uploaded documents"
+        )
+
+        # Action Buttons
+        cols_buttons = st.columns(2)
+        with cols_buttons[0]:
+            st.button(
+                "💬 Clear Chat",
+                on_click=lambda: st.session_state.messages.clear(),
+                type="secondary",
+                use_container_width=True
+            )
+
+        with cols_buttons[1]:
+            if st.button(
+                "🔄 Reset All",
+                help="Clear all documents and vectors from database",
+                type="primary",
+                use_container_width=True
+            ):
+                cleanup_current_session()
+                st.rerun()
+
+        st.divider()
+        st.subheader("📁 Document Sources")
+
         # File upload input for RAG with documents
         st.file_uploader(
-            "📄 Upload a document", 
+            "Upload Documents",
             type=["pdf", "txt", "docx", "md"],
             accept_multiple_files=True,
             on_change=load_doc_to_db,
             key="rag_docs",
+            help="Upload PDF, DOCX, TXT, or Markdown files"
         )
 
         # URL input for RAG with websites
         st.text_input(
-            "🌐 Introduce a URL", 
-            placeholder="https://example.com",
+            "Or enter a URL",
+            placeholder="https://example.com/article",
             on_change=load_url_to_db,
             key="rag_url",
+            help="Load content from a webpage"
         )
 
-        with st.expander(f"📚 Documents in DB ({0 if not is_vector_db_loaded else len(st.session_state.rag_sources)})"):
-            st.write([] if not is_vector_db_loaded else [source for source in st.session_state.rag_sources])
+        # Document counter and list
+        doc_count = 0 if not is_vector_db_loaded else len(st.session_state.rag_sources)
+
+        st.divider()
+
+        if doc_count > 0:
+            st.success(f"✅ {doc_count} document(s) loaded")
+            with st.expander("📄 View loaded documents", expanded=False):
+                for i, source in enumerate(st.session_state.rag_sources, 1):
+                    st.write(f"{i}. {source}")
+        else:
+            st.info("📭 No documents loaded yet")
 
     # Main Chat application
     if "model" not in st.session_state or not st.session_state.model:
